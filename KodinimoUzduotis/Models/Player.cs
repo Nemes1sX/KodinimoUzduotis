@@ -14,7 +14,11 @@ namespace KodinimoUzduotis.Models
        public int Id { get; set; }
         [Required(ErrorMessage = "Player name is required")]
         public string Name { get; set; } 
+        [NotMapped]
+        [Required(ErrorMessage = "Description is required")]
+        public string Description { get; set; }
         [DefaultValue(0)]
+        [Display(Name = "Successfull solutions")]
         public int Success { get; set; }
 
        [NotMapped]

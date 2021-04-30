@@ -38,58 +38,67 @@ namespace KodinimoUzduotis.Controllers
         }
 
         [HttpPost]
-        public async Task<IActionResult> SolveCode(int Id)
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> SolveCode(string Name, int Id, string Description)
         {
-            string code = HttpContext.Request.Form["description"];
+        
+             if (string.IsNullOrEmpty(Name)) 
+             {
+                return RedirectToAction("Index");
+             }
             var url = "https://api.jdoodle.com/v1/execute";
-            var content = new 
-            { 
-                clientId = "e2778c98e3fb333237d368ada38a10bb", 
-                clientSecret = "c246ffa6663b8b43c2e90d2a8cda5eb28b6e23c8169ab2bf16987c5c8977dd61", 
-                script = code, 
-                language = "php", 
-                versionIndex = "3" 
-            };
+                var content = new
+                {
+                    clientId = "e2778c98e3fb333237d368ada38a10bb",
+                    clientSecret = "c246ffa6663b8b43c2e90d2a8cda5eb28b6e23c8169ab2bf16987c5c8977dd61",
+                    script = Description,
+                    language = "php",
+                    versionIndex = "3"
+                };
 
-            var correctSolution = _context.CodeSolutions.SingleOrDefault(a => a.Id == Id);
+                var correctSolution = _context.CodeSolutions.Where(a => a.Id == Id).SingleOrDefault();
 
-            var correctContent = new
-            {
-                clientId = "e2778c98e3fb333237d368ada38a10bb",
-                clientSecret = "c246ffa6663b8b43c2e90d2a8cda5eb28b6e23c8169ab2bf16987c5c8977dd61",
-                script = correctSolution.Solution,
-                language = "php",
-                versionIndex = "3"
-            };
+                var correctContent = new
+                {
+                    clientId = "e2778c98e3fb333237d368ada38a10bb",
+                    clientSecret = "c246ffa6663b8b43c2e90d2a8cda5eb28b6e23c8169ab2bf16987c5c8977dd61",
+                    script = correctSolution.Solution,
+                    language = "php",
+                    versionIndex = "3"
+                };
 
-            var httpClient = new HttpClient();
-            var result = await httpClient.PostAsJsonAsync(url, content);
-            var correctResult = await httpClient.PostAsJsonAsync(url, correctContent);
+                var httpClient = new HttpClient();
+                var result = await httpClient.PostAsJsonAsync(url, content);
+                var correctResult = await httpClient.PostAsJsonAsync(url, correctContent);
+                object json = await result.Content.ReadAsStringAsync();
+                object correctJson = await correctResult.Content.ReadAsStringAsync();
+                string answer =  JsonConvert.DeserializeObject<Response>((string)json).output;
+                string correctAnswer = JsonConvert.DeserializeObject<Response>((string)correctJson).output;
+                
 
-            string playerName = HttpContext.Request.Form["name"];
-            var player =  _context.Players.Where(f => f.Name == playerName).SingleOrDefault();
-            object json = await result.Content.ReadAsStringAsync();
-            object correctJson = await correctResult.Content.ReadAsStringAsync();
-            var answer = JsonConvert.DeserializeObject<Response>((string)json).output;
-            var correctAnswer = JsonConvert.DeserializeObject<Response>((string)correctJson).output;
+            var player = _context.Players.Where(f => f.Name == Name).SingleOrDefault();
 
             if (player != null)
-            {
-                if (answer == correctAnswer)
                 {
-                    player.Success++;
-                } 
-            } else {
-                Player newPlayer = new Player();
-                newPlayer.Name = playerName;
-                if (answer == correctAnswer) {
-                    newPlayer.Success++;
+                    if (String.Equals(answer, correctAnswer))
+                    {
+                        player.Success++;
+                    }
                 }
-                _context.Players.Add(newPlayer);
-            }
-            _context.SaveChanges();
+                else
+                {
+                    Player newPlayer = new Player();
+                    newPlayer.Name = Name;
+                    if (String.Equals(answer, correctAnswer))
+                    {
+                        newPlayer.Success++;
+                    }
+                    _context.Players.Add(newPlayer);
+                }
+                _context.SaveChanges();
 
             return RedirectToAction("TopScore");
+           
         }
 
         public IActionResult TopScore()
